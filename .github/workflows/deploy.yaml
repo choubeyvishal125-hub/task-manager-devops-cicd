@@ -1,0 +1,51 @@
+name: Task Manager CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest
+
+      - name: Test backend API
+        run: |
+          python - <<'PY'
+          from backend.app import app
+
+          client = app.test_client()
+
+          response = client.get("/tasks")
+          assert response.status_code == 200
+          assert response.get_json() == []
+
+          response = client.post(
+              "/tasks",
+              json={"title": "Learn Docker"}
+          )
+          assert response.status_code == 201
+
+          response = client.get("/tasks")
+          assert len(response.get_json()) == 1
+
+          print("Backend API tests passed")
+          PY
+
+      - name: Build Docker image
+        run: docker build -t task-manager-backend .
